@@ -60,30 +60,28 @@ def drought_change(tc_masked, drought_index_o, drought_index_r):
     # drought index with total precip minus the same metric calculated after
     # the removal of TC precipitation. This yields the change
     # of the index solely related to TC precipitation on monthly time sacles.
-    #drought_change_mon = selected_o - selected_r
+    drought_change_mon = selected_o - selected_r
      
     # Now, let's count the number of months where the drought index changed
     # at least +1.0, which indicates a significant drought improvement. We do
     # that on each grid cell (lat/lon)
-    
-    #count_plus_one = np.zeros((len(tc_masked[0]), len(tc_masked[0][0])))
+    count_plus_one = np.zeros((len(tc_masked[0]), len(tc_masked[0][0])))
     count_end_drought = np.zeros((len(tc_masked[0]), len(tc_masked[0][0])))
 
     for i in range(len(tc_masked[0])):
         for j in range(len(tc_masked[0][0])):
-            #count_plus_one[i,j] = (drought_change_mon[:, i, j] > 1.0).sum()
+            count_plus_one[i,j] = (drought_change_mon[:, i, j] > 1.0).sum()
             count_end_drought[i,j] = ((selected_r[:, i, j] < -0.9) & (selected_o[:, i, j] >= 0.9)).sum()
 
     # Now, let's see if the differences between TC-rainfall removed and total rainfall 
     # are statistically-significant
-    #stat, pval = ttest_ind(selected_r, selected_o)
+    stat, pval = ttest_ind(selected_r, selected_o)
     
     # Mask p-values higher than 0.05
-    #pval = np.ma.masked_greater(pval, 0.05)
+    pval = np.ma.masked_greater(pval, 0.05)
     
-    #return selected_o, selected_r
     
-    return count_end_drought#count_plus_one, pval, selected_o, selected_r
+    return count_end_drought, count_plus_one, pval, selected_o, selected_r
     
 # =============================================================================
 # tc_drought function extract drought indices regional-mean
@@ -150,111 +148,6 @@ def drought_stats(count, pval):
     pval_km2 = pval_grids * 30.80
     
     return count_grids, count_percentage, count_km2, countmax, countmean, pval_percentage, pval_km2
-
-
-    
-# Calculate clim and anom using total rainfall data as reference (climatology)
-#pre_clim = pre.sel(time=slice('1985-01-01', '2023-01-01')).groupby("time.month").mean("time")
-#pre_anom = pre.groupby("time.month") - pre_clim
-#prer_anom = prer.groupby("time.month") - pre_clim   
-
-# =============================================================================
-# Load data
-# =============================================================================
-
-# Dataset with the difference monthly precipiation between total rainfall minus
-# TC-removed rainfall data
-df = xr.open_dataset('/Users/dimitrisherrera/Desktop/CHIRPSv2/CHIRPS-monthly-from-daily/Dif_CHIRPS_Total-minus-TCremv_1984-2023.nc')
-dif = df.precip
-
-# Mask invalid
-dif_masked = np.ma.masked_invalid(dif)
-
-# Mask dif == 0-0 (e.g., no TC affected the region during i month)
-dif_masked = np.ma.where(dif_masked > 0.0, 1.0, dif_masked)
-
-'''# Load drought index with total precipitation
-sp1 = xr.open_dataset('/Users/dimitrisherrera/Desktop/TC_contributions/Drought_indices/Full_pre_data/SPEI12_CRUpet_interp_1984-2023.nc')
-spi1o = sp1.__xarray_dataarray_variable__
-spi1o = np.ma.masked_invalid(spi1o)
-
-# Load drought index with TC-precipitation removed
-sp1r = xr.open_dataset('/Users/dimitrisherrera/Desktop/TC_contributions/Drought_indices/TC-removed_Pre/SPEI12_CRUpet_interp_TCremv_1984-2023.nc')
-#sp1r = xr.open_dataset('/Users/dimitrisherrera/Desktop/TC_contributions/Drought_indices/TC-removed_Pre/PDSI_CRUpet_interp_TC-removed_1984-2023')
-spi1r = sp1r.__xarray_dataarray_variable__
-spi1r = np.ma.masked_invalid(spi1r)
-
-# Calculate counts and pvals
-#count, pval, selectedo, selectedr = drought_change(dif_masked, spi1o, spi1r)
-
-end_drought = drought_change(dif_masked, spi1o, spi1r)
-end_drought = np.ma.masked_invalid(end_drought)
-end_drought = np.ma.masked_equal(end_drought, 0.0)
-
-(np.ma.count(end_drought) * 100)/253998
-
-#count = np.ma.masked_invalid(count)
-#count = np.ma.masked_less(count, 1)
-
-#pval = np.ma.masked_invalid(pval)
-
-'''
-# =============================================================================
-# Load pre data
-# =============================================================================
-pr = xr.open_dataset('/Users/dimitrisherrera/Desktop/CHIRPSv2/CHIRPS-monthly-from-daily/CHIRPS_monthly_1984-2023.nc')
-prr = xr.open_dataset('/Users/dimitrisherrera/Desktop/CHIRPSv2/CHIRPS-monthly-from-daily/CHIRPS_monthly_1984-2023_TC-removed.nc')
-
-pre = pr.precip
-prer = prr.precip
-
-pre = pre.assign_coords({"time": pd.date_range("1984-01", periods=480, freq="MS")})
-prer = prer.assign_coords({"time": pd.date_range("1984-01", periods=480, freq="MS")})
-
-pre = np.array(pre)
-prer = np.array(prer)
-
-'''pre_clim = pre.sel(time=slice('1985-01-01', '2023-01-01')).groupby("time.month").mean("time")
-#prer_clim = prer.sel(time=slice('1985-01-01', '2023-01-01')).groupby("time.month").mean("time")
-
-pre_anom = pre.groupby("time.month") - pre_clim
-prer_anom = prer.groupby("time.month") - pre_clim
-
-pre_std = pre.sel(time=slice('1985-01-01', '2023-01-01')).groupby("time.month").std("time")
-#prer_std = prer.sel(time=slice('1985-01-01', '2023-01-01')).groupby("time.month").std("time")
-
-# Convert xarrays to numpy (better for z-scores)
-pre_anomnp = np.array(pre_anom)
-prer_anomnp = np.array(prer_anom)
-pre_stdnp = np.array(pre_std)
-std = np.tile(pre_stdnp, (40, 1, 1))
-
-
-zo = pre_anomnp/std
-zr = prer_anomnp/std
-
-
-#def index_dif(total_rain, removed_tc, ref_dif):
-selectedr = spei1r * dif_masked
-selectedo = spei1o * dif_masked
-
-# Now, estimate how TC decreased drought each month
-drought_change_mon = selectedo - selectedr
-'''
-'''
-fig, ax = plt.subplots()
-fig.set_size_inches(14, 3)
-plt.plot(testo, color='royalblue')
-plt.plot(testr, color='salmon')
-
-def is_amj(month):
-    return (month >= 4) & (month <= 10)
-
-seasonal_chits = chits.sel(time=is_amj(chits['time.month']))'''
-
-    
-plt.imshow((spi1o[294,200:500,800:1400]-spi1r[294,200:500,800:1400]), vmin=-3, vmax=3, cmap='terrain_r')
-plt.colorbar()
 
 
 
