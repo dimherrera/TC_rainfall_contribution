@@ -58,7 +58,8 @@ def storm_case(storm, pr):
     storm = storm.drop(['extra_obs', 'special', 'type','vmax', 'mslp', 'wmo_basin'], axis=1)
     storm = storm.set_index('time')
     storm.index = pd.to_datetime(storm.index)
-    storm = storm.between_time('00:00', '00:00')
+    storm = storm.between_time('00:00', '18:00')
+    storm = storm.resample('D').mean() # Calculate the positional mean for each day
     N = list(storm.index.shape)
     las = np.zeros((N))
     los = np.zeros((N))
